@@ -1,0 +1,73 @@
+version: '3.8'  
+
+services:
+  gorgon-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_FILE: proxy.go
+    container_name: gorgon-proxy
+    ports:       
+      - "8080:8080"
+      - "8081:8081"
+      - "6060:6060"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    depends_on:
+      - upstream1
+      - upstream2
+
+  upstream1:   
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_FILE: servers/server.go
+    container_name: upstream1
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+  upstream2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_FILE: servers/server.go
+    container_name: upstream2
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+  load-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_FILE: client/connector.go
+    depends_on:
+      - gorgon-proxy
+    restart: on-failure
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus

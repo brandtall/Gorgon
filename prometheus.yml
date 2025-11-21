@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s # Scrape fast for this demo
+
+scrape_configs:
+  - job_name: 'gorgon_proxy'
+    static_configs:
+      - targets: ['gorgon-proxy:8081'] # DNS name of the container

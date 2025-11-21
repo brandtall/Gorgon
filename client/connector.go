@@ -18,7 +18,7 @@ func main() {
 			defer wg.Done()
 			log.Print("New Connection Starting")
 			// Inside the goroutine:
-			proxyConn, err := net.Dial("tcp", ":8080")
+			proxyConn, err := net.Dial("tcp", "grogon-proxy:8080")
 			if err != nil {
   		  log.Printf("Connect error: %v", err)
     		return // <-- MUST RETURN

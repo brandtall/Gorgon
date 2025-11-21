@@ -1,6 +1,7 @@
 package main
 
 import (
+	"grogon/providers"
 	"io"
 	"log"
 	"net"
@@ -18,8 +19,6 @@ import (
 // --- Configuration ---
 const IDLE_TIMEOUT = 10 * time.Minute
 const DIAL_TIMEOUT = 2 * time.Second
-const HEALTH_CHECK_INTERVAL = 10 * time.Second
-const HEALTH_CHECK_TIMEOUT = 1 * time.Second
 
 
 // --- Globals ---
@@ -101,11 +100,12 @@ func main() {
 	}()
 
 	upstreams := []string{
-		":7777",
-		":7778",
+		"upstream1:7777",
+		"upstream2:7777",
 	}
+
 	
-	var serverProvider = newRRServerProvider(upstreams)
+	var serverProvider = providers.NewRRServerProvider(upstreams)
 
 	var wg sync.WaitGroup
 
@@ -203,73 +203,5 @@ func copyWithIdleTimeout(destination net.Conn, source net.Conn, timeout time.Dur
 			log.Printf("Write error: %v", err)
 			return
 		}
-	}
-}
-
-// --- Round Robin Provider (Thread-Safe) ---
-
-// RRServerProvider implements IServerProvider with
-// round-robin logic and active health checking.
-type RRServerProvider struct {
-	upstreamServers []string
-	liveServers     []string
-	mu              sync.Mutex
-	index           int
-}
-
-func newRRServerProvider(servers []string) *RRServerProvider {
-
-	serverCopy := make([]string, len(servers))
-	copy(serverCopy, servers)
-
-	provider := &RRServerProvider{
-		upstreamServers: serverCopy,
-		liveServers:     append([]string{}, serverCopy...),
-	}
-
-	go provider.healthChecks()
-
-	return provider
-}
-
-func (provider *RRServerProvider) Next() string {
-
-	provider.mu.Lock()
-	defer provider.mu.Unlock()
-
-	if len(provider.liveServers) == 0 {
-		return ""
-	}
-
-	selectedServer := provider.liveServers[provider.index]
-	provider.index = (provider.index + 1) % len(provider.liveServers)
-
-	return selectedServer
-}
-
-func (provider *RRServerProvider) healthChecks() {
-	ticker := time.NewTicker(HEALTH_CHECK_INTERVAL)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		log.Println("Running health checks...")
-
-		var newLiveServers []string
-		for _, server := range provider.upstreamServers {
-			conn, err := net.DialTimeout("tcp", server, HEALTH_CHECK_TIMEOUT)
-			if err == nil {
-				newLiveServers = append(newLiveServers, server)
-				conn.Close()
-			} else {
-				log.Printf("Health check failed for %s: %v", server, err)
-			}
-		}
-
-		provider.mu.Lock()
-		provider.liveServers = newLiveServers
-		provider.index = 0
-		provider.mu.Unlock()
-
-		log.Printf("Health check complete. Live servers: %v", provider.liveServers)
 	}
 }
