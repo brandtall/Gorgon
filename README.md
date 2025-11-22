@@ -40,7 +40,7 @@ The real power of `sync.Pool` is that it allocates **separate pools per CPU core
 
 To ensure upstream servers are live, we have **active health checks** that run periodically. They temporarily remove dead servers from rotation and automatically return them when they recover.
 
-Currently, we have a "dumb" Round Robin load balancer for this POC (which can be replaced with a better algorithm such as Least Connections easily).
+Currently, we have a Round Robin load balancer for this POC (which can be replaced with Least Connections easily).
 
 We also handle **graceful shutdown** through syscalls (`SIGINT`/`SIGTERM`) and `sync.WaitGroup`, ensuring no active client connections are dropped during a deployment.
 
